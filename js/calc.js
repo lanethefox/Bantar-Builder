@@ -123,12 +123,35 @@ function suggestGauge(index, total, gauges) {
   return gauges[Math.min(gauges.length - 1, Math.max(0, gi))];
 }
 
-/* Full build: combine fret geometry + tie lengths + wraps into one table. */
+/* Existing metal frets on an already-fretted banjo sit at exact 12-TET
+ * positions (multiples of 100 cents), numbered 1..count from the nut. */
+function metalFretList(count, scaleLength) {
+  const out = [];
+  for (let k = 1; k <= count; k++) {
+    const cents = 100 * k;
+    out.push({ index: k, cents, distanceFromNut: fretDistanceFromNut(scaleLength, cents) });
+  }
+  return out;
+}
+
+/* Does a target pitch (cents above open) already land on a metal fret? */
+function coincidesWithMetal(cents, metalCount, tol) {
+  if (!metalCount) return false;
+  const t = tol == null ? 2 : tol;
+  const nearest = Math.round(cents / 100) * 100;
+  return nearest > 0 && nearest <= 100 * metalCount && Math.abs(cents - nearest) <= t;
+}
+
+/* Full build: combine fret geometry + tie lengths + wraps into one table.
+ * In hybrid mode (existingMetalFrets > 0), any Persian pitch that already
+ * lands on a metal fret is flagged 'metal' (no tie needed); the rest are
+ * 'tie' frets you add in Nylgut. */
 function computeBuild(params) {
   const {
     scaleLength, enabledNoteIds, octaves, maxFrets,
     geom, wrapMode, knotAllowance, gauges,
   } = params;
+  const metalCount = params.existingMetalFrets || 0;
 
   const frets = buildFrets(enabledNoteIds, octaves, scaleLength, maxFrets);
   const total = frets.length;
@@ -137,18 +160,22 @@ function computeBuild(params) {
     const p = row.distanceFromNut / scaleLength;
     const dims = neckDimsAt(p, geom);
     const perim = ellipsePerimeter(dims.width, dims.thickness);
-    const wraps = wrapMode === 'single' ? 1
+    const onMetal = coincidesWithMetal(row.cents, metalCount);
+    const wraps = onMetal ? 0
+                : wrapMode === 'single' ? 1
                 : wrapMode === 'double' ? 2
                 : defaultWraps(row, total);
-    const tie = cutLength(perim, wraps, knotAllowance);
+    const tie = onMetal ? 0 : cutLength(perim, wraps, knotAllowance);
     return {
       ...row,
+      fretType: onMetal ? 'metal' : 'tie',
+      existing: onMetal,
       neckWidth: dims.width,
       neckThickness: dims.thickness,
       perimeter: perim,
       wraps,
       cutLength: tie,
-      gauge: suggestGauge(row.index, total, gauges),
+      gauge: onMetal ? null : suggestGauge(row.index, total, gauges),
     };
   });
 }
@@ -165,8 +192,10 @@ function dastgahDegreeSet(dastgah, tonicCents) {
   return set;
 }
 
-/* Total Nylgut needed (mm and m), handy for the shopping/cut summary. */
+/* Total Nylgut needed (mm and m) plus tie/metal counts for the summary. */
 function totalNylgut(build) {
   const mm = build.reduce((s, r) => s + r.cutLength, 0);
-  return { mm, m: mm / 1000 };
+  const tieCount = build.filter(r => r.fretType !== 'metal').length;
+  const metalCount = build.filter(r => r.fretType === 'metal').length;
+  return { mm, m: mm / 1000, tieCount, metalCount };
 }

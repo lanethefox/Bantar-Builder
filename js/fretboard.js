@@ -82,32 +82,54 @@ class Fretboard {
       }));
     }
 
+    // --- existing metal frets (hybrid mode): silver reference bars ---
+    (opts.metalFrets || []).forEach(mf => {
+      const y = yNut + mf.distanceFromNut * pxPerMm;
+      const hw = widthAt(mf.distanceFromNut) / 2;
+      this.svg.appendChild(el('line', {
+        x1: cx - hw, y1: y, x2: cx + hw, y2: y,
+        stroke: '#c8ccd4', 'stroke-width': 2.5, 'stroke-linecap': 'round', opacity: 0.85,
+      }));
+      this.svg.appendChild(el('text', {
+        x: cx - hw - 10, y: y + 3.5, 'text-anchor': 'end',
+        fill: '#9aa0ac', 'font-size': 9,
+      }, [document.createTextNode('▮' + mf.index)]));
+    });
+
     // --- frets ---
     build.forEach(row => {
       const y = yNut + row.distanceFromNut * pxPerMm;
       const hw = widthAt(row.distanceFromNut) / 2;
       const inMode = degreeSet.size === 0 || degreeSet.has(row.octaveCents);
       const color = KIND_COLOR[row.kind] || '#8d99ae';
+      const isMetalRow = row.fretType === 'metal';
 
       const g = el('g', { class: 'fret', opacity: inMode ? 1 : 0.28 });
 
-      // the tied fret bar
-      g.appendChild(el('line', {
-        x1: cx - hw, y1: y, x2: cx + hw, y2: y,
-        stroke: color, 'stroke-width': inMode ? 3 + row.wraps : 2,
-        'stroke-linecap': 'round',
-      }));
-      // wrap pips on the bass edge (how many times around)
-      for (let w = 0; w < row.wraps; w++) {
+      if (!isMetalRow) {
+        // the tied fret bar
+        g.appendChild(el('line', {
+          x1: cx - hw, y1: y, x2: cx + hw, y2: y,
+          stroke: color, 'stroke-width': inMode ? 3 + row.wraps : 2,
+          'stroke-linecap': 'round',
+        }));
+        // wrap pips on the bass edge (how many times around)
+        for (let w = 0; w < row.wraps; w++) {
+          g.appendChild(el('circle', {
+            cx: cx - hw - 6 - w * 6, cy: y, r: 2.4, fill: color,
+          }));
+        }
+        // index number (left gutter)
+        g.appendChild(el('text', {
+          x: cx - hw - 14 - row.wraps * 6, y: y + 4, 'text-anchor': 'end',
+          fill: '#6b7280', 'font-size': 11,
+        }, [document.createTextNode(String(row.index))]));
+      } else {
+        // pitch already on a metal fret: mark the silver bar as in-scale
         g.appendChild(el('circle', {
-          cx: cx - hw - 6 - w * 6, cy: y, r: 2.4, fill: color,
+          cx: cx + hw + 4, cy: y, r: 3, fill: inMode ? color : '#6b7280',
         }));
       }
-      // index number (left gutter)
-      g.appendChild(el('text', {
-        x: cx - hw - 14 - row.wraps * 6, y: y + 4, 'text-anchor': 'end',
-        fill: '#6b7280', 'font-size': 11,
-      }, [document.createTextNode(String(row.index))]));
       // note label (right gutter) — solfège + western
       const label = el('text', {
         x: cx + hw + 10, y: y + 4, 'text-anchor': 'start',

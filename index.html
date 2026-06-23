@@ -45,6 +45,14 @@
     </fieldset>
 
     <fieldset>
+      <legend>Existing frets (hybrid mode)</legend>
+      <label>Number of metal frets already on the banjo
+        <input id="existingMetalFrets" class="recompute" type="number" value="0" min="0" max="30" step="1">
+      </label>
+      <p class="hint">Leave at <strong>0</strong> for a fretless conversion (tie every fret). Set this to your banjo’s metal-fret count to build a <strong>hybrid</strong>: the metal frets stay, and you only tie Nylgut frets for the Persian neutral tones (koron/sori) that fall between them.</p>
+    </fieldset>
+
+    <fieldset>
       <legend>Strings &amp; tuning</legend>
       <label>Preset
         <select id="tuningPreset" class="recompute"></select>
@@ -116,6 +124,7 @@
       <span class="lg koron">koron (♭¼)</span>
       <span class="lg sori">sori (♯¼)</span>
       <span class="lg chromatic">chromatic</span>
+      <span class="lg metal">existing metal fret</span>
       <span class="lg pip">● = wraps around neck</span>
     </div>
 
@@ -143,7 +152,7 @@
     <div class="table-scroll">
       <table id="fretTable" class="data">
         <thead><tr>
-          <th>#</th><th>Note</th><th>From nut<br>(mm)</th><th>Spacing<br>(mm)</th>
+          <th>#</th><th>Note</th><th>Type</th><th>From nut<br>(mm)</th><th>Spacing<br>(mm)</th>
           <th>Neck w×t<br>(mm)</th><th>Wraps</th><th>Cut<br>(mm)</th><th>Gauge<br>(mm)</th>
         </tr></thead>
         <tbody></tbody>

@@ -32,6 +32,7 @@ function readParams() {
     scaleLength: num('scaleLength', 660),
     octaves: parseInt($('#octaves').value, 10) || 2,
     maxFrets: num('maxFrets', 0) || 0,
+    existingMetalFrets: parseInt($('#existingMetalFrets').value, 10) || 0,
     enabledNoteIds: state.enabledNoteIds,
     geom,
     wrapMode: $('#wrapMode').value,
@@ -129,31 +130,55 @@ function renderTable(build) {
   tb.innerHTML = '';
   build.forEach(r => {
     const tr = document.createElement('tr');
-    tr.className = 'kind-' + r.kind;
+    tr.className = 'kind-' + r.kind + (r.fretType === 'metal' ? ' is-metal' : '');
+    const typeCell = r.fretType === 'metal'
+      ? '<span class="tag metal">metal ✓</span>'
+      : '<span class="tag tie">tie</span>';
     tr.innerHTML = `
       <td>${r.index}</td>
       <td><strong>${r.solfege}</strong> · ${r.en}<br><span class="fa">${r.fa}</span></td>
+      <td>${typeCell}</td>
       <td>${r.distanceFromNut.toFixed(2)}</td>
       <td>${r.spacing.toFixed(2)}</td>
       <td>${r.neckWidth.toFixed(1)}×${r.neckThickness.toFixed(1)}</td>
-      <td><strong>${r.wraps}</strong></td>
-      <td>${r.cutLength.toFixed(0)}</td>
+      <td>${r.fretType === 'metal' ? '—' : '<strong>' + r.wraps + '</strong>'}</td>
+      <td>${r.fretType === 'metal' ? '—' : r.cutLength.toFixed(0)}</td>
       <td>${r.gauge ? r.gauge.toFixed(2) : '—'}</td>`;
     tb.appendChild(tr);
   });
   const tot = totalNylgut(build);
+  const metalNote = tot.metalCount
+    ? ` (${tot.metalCount} of these already sit on existing metal frets — no tie needed)`
+    : '';
   $('#nylgutTotal').textContent =
-    `${build.length} frets · total Nylgut to cut: ${tot.mm.toFixed(0)} mm (${tot.m.toFixed(2)} m)`;
+    `${tot.tieCount} string frets to tie${metalNote} · total Nylgut to cut: ${tot.mm.toFixed(0)} mm (${tot.m.toFixed(2)} m)`;
 }
 
 /* ---------- assembly guide ---------- */
 function renderAssembly(build, params) {
   const steps = [];
   const sl = params.scaleLength;
+  const metalCount = params.existingMetalFrets || 0;
+  const tieFrets = build.filter(r => r.fretType !== 'metal');
   const octaveFret = build.find(r => Math.abs(r.octaveCents) < 1 && r.octave === 1)
                   || build.find(r => r.cents === 1200);
   const fifth = build.find(r => r.octaveCents === 700);
   const fourth = build.find(r => r.octaveCents === 500);
+
+  if (metalCount > 0) {
+    steps.push(`<strong>Hybrid build.</strong> Your banjo keeps its ${metalCount} metal frets — those are already at exact equal-tempered positions and need nothing done to them. You are only adding the <strong>${tieFrets.length} tied Nylgut frets</strong> that fall <em>between</em> the metal ones (the koron/sori neutral tones the metal frets can’t reach). Only the “tie” rows in the chart get cut.`);
+    steps.push(`Your metal frets are the reference grid — they are dead-on 12-TET, so you never re-tune them. Tie each new gut fret <em>between</em> its two neighbouring metal frets and tune it by ear/tuner against them. The metal octave fret (#${metalCount >= 12 ? 12 : 'n/a'}) and the metal fifth (#7) are your truth-checks.`);
+    steps.push(`Cut only the “tie” pieces to the lengths in the fret table (the “Cut” column already includes a ${params.knotAllowance} mm allowance for the knot tails). Label each piece with its fret number — they are not interchangeable once the neck tapers.`);
+    steps.push(`Tie direction: pass the gut around the neck from the treble (white-string) side and finish the knot on the BASS edge, so knots never sit under the melody string. Because a tied fret is taller than a metal fret, set your action with that in mind — the gut fret must clear the metal frets on either side when you fret elsewhere.`);
+    steps.push(`Slide-to-tune: each gut fret can move a millimetre or two. Fret the string at the new gut fret, compare to the integrated tuner, and slide toward the nut to lower or toward the bridge to raise. The tuner’s on-neck marker shows where the note currently lands versus where the fret sits, with the silver metal bars drawn for reference.`);
+    steps.push(`Wrap count = full turns around the neck before knotting. This app uses ${params.wrapMode === 'auto' ? 'more turns on low frets (taller, firmer) and fewer up high' : params.wrapMode + ' wraps on every tie'}. A taller fret pulls the pressed note slightly sharp — which is exactly why you tune the gut frets AFTER tying, by sliding.`);
+    steps.push(`Put light string tension on overnight, then re-check. Nylgut relaxes; a second tuning pass the next day is normal. A drop of thin shellac on each finished knot (never the playing surface) locks it without making removal impossible.`);
+
+    const ol = $('#assemblySteps');
+    ol.innerHTML = '';
+    steps.forEach(s => { const li = document.createElement('li'); li.innerHTML = s; ol.appendChild(li); });
+    return;
+  }
 
   steps.push(`Cut your Nylgut tie stock to the lengths in the fret table (the “Cut” column already includes a ${params.knotAllowance} mm allowance for the knot tails). Label each piece with its fret number — they are not interchangeable once the neck tapers.`);
   steps.push(`Work the reference frets first, not in number order. Tie and slide these into place and tune them precisely before filling in the rest, because everything else is checked against them:`);
@@ -229,6 +254,7 @@ function recompute() {
     degreeSet,
     geom: params.geom,
     strings,
+    metalFrets: metalFretList(params.existingMetalFrets, params.scaleLength),
   });
 }
 
@@ -316,10 +342,12 @@ function populateSelects() {
 
 /* ---------- export ---------- */
 function exportCSV() {
-  const rows = [['#','note(solfege)','western','persian','dist_from_nut_mm','spacing_mm','neck_w_mm','neck_t_mm','wraps','cut_len_mm','gauge_mm']];
+  const rows = [['#','note(solfege)','western','persian','type','dist_from_nut_mm','spacing_mm','neck_w_mm','neck_t_mm','wraps','cut_len_mm','gauge_mm']];
   state.build.forEach(r => rows.push([
-    r.index, r.solfege, r.en, r.fa, r.distanceFromNut.toFixed(2), r.spacing.toFixed(2),
-    r.neckWidth.toFixed(1), r.neckThickness.toFixed(1), r.wraps, r.cutLength.toFixed(0),
+    r.index, r.solfege, r.en, r.fa, r.fretType, r.distanceFromNut.toFixed(2), r.spacing.toFixed(2),
+    r.neckWidth.toFixed(1), r.neckThickness.toFixed(1),
+    r.fretType === 'metal' ? '' : r.wraps,
+    r.fretType === 'metal' ? '' : r.cutLength.toFixed(0),
     r.gauge ? r.gauge.toFixed(2) : '',
   ]));
   const csv = rows.map(r => r.join(',')).join('\n');
