@@ -29,6 +29,14 @@ python3 -m http.server 8000      # then open http://localhost:8000
 materials, and your Nylgut knot allowance. Banjo string count maps onto
 Persian string roles via tuning presets.
 
+> **Fretless or hybrid.** Set *“Number of metal frets already on the banjo”*
+> to `0` for a fully fretless conversion (tie every fret), or to your banjo’s
+> metal-fret count for a **hybrid**: the existing metal frets stay as the exact
+> 12-TET reference grid, and you only tie Nylgut frets for the Persian neutral
+> tones (koron/sori) that fall *between* them. The table marks each fret
+> **metal ✓** (already there) or **tie** (add), and the Nylgut total counts only
+> the tied frets.
+
 **2 · Fret diagram.** A to-scale neck with every tied fret drawn at its true
 distance from the nut, color-coded by type (diatonic / koron / sori /
 chromatic), labelled in solfège, Western, and Persian script. Pick a
