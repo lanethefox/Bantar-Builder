@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bantar Builder — Banjo → Tar / Setar fret calculator</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">ﮎ</span>
+    <div>
+      <h1>Bantar Builder</h1>
+      <p class="tagline">Convert a fretless banjo into an Americanized tār / setār — fret math, Persian tuning, assembly guide &amp; tuner</p>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <button id="printBtn" class="btn ghost">🖨 Print shop sheet</button>
+    <button id="exportCsv" class="btn ghost">⬇ Export CSV</button>
+  </div>
+</header>
+
+<main class="grid">
+
+  <!-- ============ LEFT: PARAMETERS ============ -->
+  <section class="panel params">
+    <h2>1 · Instrument parameters</h2>
+
+    <fieldset>
+      <legend>Geometry (mm)</legend>
+      <label>Scale length (nut → bridge)
+        <input id="scaleLength" class="recompute" type="number" value="660" min="300" max="900" step="1">
+      </label>
+      <div class="row2">
+        <label>Nut width <input id="nutWidth" class="recompute" type="number" value="30" step="0.5"></label>
+        <label>Width at body join <input id="joinWidth" class="recompute" type="number" value="42" step="0.5"></label>
+      </div>
+      <div class="row2">
+        <label>Nut thickness <input id="nutThickness" class="recompute" type="number" value="18" step="0.5"></label>
+        <label>Thickness at join <input id="joinThickness" class="recompute" type="number" value="24" step="0.5"></label>
+      </div>
+      <p class="hint">Tied frets wrap the whole neck, so width <em>and</em> thickness drive how much Nylgut each fret needs.</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Strings &amp; tuning</legend>
+      <label>Preset
+        <select id="tuningPreset" class="recompute"></select>
+      </label>
+      <table id="stringsTable" class="mini">
+        <thead><tr><th>#</th><th>Persian role</th><th>Pitch</th><th>Hz</th><th>Notes</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </fieldset>
+
+    <fieldset>
+      <legend>Build materials (for your records)</legend>
+      <div class="row2">
+        <label>Neck <input class="recompute" id="matNeck" list="mNeck" placeholder="Maple"></label>
+        <label>Head <input class="recompute" id="matHead" list="mHead" placeholder="Calfskin"></label>
+      </div>
+      <div class="row2">
+        <label>Bridge <input class="recompute" id="matBridge" list="mBridge" placeholder="Floating wood"></label>
+        <label>Nut <input class="recompute" id="matNut" list="mNut" placeholder="Bone"></label>
+      </div>
+      <datalist id="mNeck"></datalist><datalist id="mHead"></datalist>
+      <datalist id="mBridge"></datalist><datalist id="mNut"></datalist>
+      <p class="hint">A banjo head is the tār’s membrane soundboard — that shared skin top is exactly why this conversion works.</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Fret material — Aquila Nylgut (tenor stock)</legend>
+      <label>Knot allowance per fret (mm)
+        <input id="knotAllowance" class="recompute" type="number" value="45" step="1">
+      </label>
+      <label>Wrap convention
+        <select id="wrapMode" class="recompute">
+          <option value="auto">Auto (diatonic &amp; low frets get more turns)</option>
+          <option value="single">Single wrap on every fret</option>
+          <option value="double">Double wrap on every fret</option>
+        </select>
+      </label>
+      <p class="hint" id="gaugeHint"></p>
+    </fieldset>
+  </section>
+
+  <!-- ============ MIDDLE: FRETBOARD ============ -->
+  <section class="panel board">
+    <h2>2 · Fret diagram (to scale)</h2>
+
+    <fieldset class="modebar">
+      <legend>Mode &amp; layout</legend>
+      <div class="row2">
+        <label>Modal tonic = open string
+          <select id="tonicString" class="recompute"></select>
+        </label>
+        <label>Dastgāh / āvāz
+          <select id="dastgah" class="recompute"></select>
+        </label>
+      </div>
+      <div class="row2">
+        <label class="check"><input id="octaves" class="recompute" type="number" value="2" min="1" max="3" step="1"> octaves</label>
+        <label class="check"><input id="maxFrets" class="recompute" type="number" value="0" min="0" step="1"> max frets (0 = all)</label>
+      </div>
+      <div class="checks">
+        <label class="check"><input id="autoFrets" class="recompute" type="checkbox" checked> Auto-add the frets this mode needs</label>
+        <label class="check"><input id="highlightMode" class="recompute" type="checkbox" checked> Highlight in-mode frets</label>
+      </div>
+      <p class="info" id="dastgahInfo"></p>
+    </fieldset>
+
+    <div class="fb-legend">
+      <span class="lg natural">diatonic</span>
+      <span class="lg koron">koron (♭¼)</span>
+      <span class="lg sori">sori (♯¼)</span>
+      <span class="lg chromatic">chromatic</span>
+      <span class="lg pip">● = wraps around neck</span>
+    </div>
+
+    <div class="fb-scroll">
+      <svg id="fretboardSvg" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+
+    <h3>Enabled frets (click to toggle)</h3>
+    <div id="noteChips" class="chips"></div>
+  </section>
+
+  <!-- ============ RIGHT: TUNER + TABLE + GUIDE ============ -->
+  <section class="panel out">
+    <h2>3 · Chromatic tuner</h2>
+    <div class="tuner">
+      <button id="tunerToggle" class="btn primary">🎤 Start tuner</button>
+      <div class="meter">
+        <div class="scale"><span>♭ flat</span><span>0</span><span>sharp ♯</span></div>
+        <div class="track"><div id="tunerNeedle" class="needle"></div></div>
+      </div>
+      <div id="tunerReadout" class="readout">Press start and pluck a string. The marker also rides the fret diagram so you can slide each tied fret to pitch.</div>
+    </div>
+
+    <h2>4 · Fret cut &amp; wrap chart</h2>
+    <div class="table-scroll">
+      <table id="fretTable" class="data">
+        <thead><tr>
+          <th>#</th><th>Note</th><th>From nut<br>(mm)</th><th>Spacing<br>(mm)</th>
+          <th>Neck w×t<br>(mm)</th><th>Wraps</th><th>Cut<br>(mm)</th><th>Gauge<br>(mm)</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p id="nylgutTotal" class="total"></p>
+
+    <h2>5 · Assembly order &amp; directions</h2>
+    <ol id="assemblySteps" class="steps"></ol>
+  </section>
+</main>
+
+<footer class="foot">
+  <p><strong>About the numbers.</strong> Fret positions use the generalized rule
+  of 18: <code>d = L·(1 − 2^(−cents/1200))</code>. The neutral koron/sori
+  intervals are practical luthier values, not a fixed theory — Persian modes are
+  melody families, so the highlighted scales are “the frets you need to play in
+  this dastgāh,” editable at will. Tuner uses your microphone via autocorrelation
+  and never leaves the browser. Built for hand-fretting tied Aquila Nylgut.</p>
+</footer>
+
+<script src="js/data.js"></script>
+<script src="js/calc.js"></script>
+<script src="js/tuner.js"></script>
+<script src="js/fretboard.js"></script>
+<script src="js/app.js"></script>
+<script>
+  // fill material datalists + gauge hint
+  (function () {
+    const fill = (id, arr) => { const d = document.getElementById(id); arr.forEach(v => { const o=document.createElement('option'); o.value=v; d.appendChild(o); }); };
+    fill('mNeck', MATERIALS.neck); fill('mHead', MATERIALS.head);
+    fill('mBridge', MATERIALS.bridge); fill('mNut', MATERIALS.nut);
+    document.getElementById('gaugeHint').textContent =
+      NYLGUT_TENOR.note + ' Stock gauges: ' + NYLGUT_TENOR.gauges_mm.join(', ') + ' mm.';
+  })();
+</script>
+</body>
+</html>
