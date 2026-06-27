@@ -29,6 +29,18 @@ python3 -m http.server 8000      # then open http://localhost:8000
 materials, and your Nylgut knot allowance. Banjo string count maps onto
 Persian string roles via tuning presets.
 
+> **Units.** Toggle the whole tool between **mm** and **inches** from the top
+> bar — every input and every output column converts in place (Nylgut stock
+> gauges stay in mm, since that’s how Aquila sells them).
+
+> **Removing frets for setar spacing.** In hybrid mode the tool also prints a
+> *conversion plan*: which existing metal frets to **keep** (they land on your
+> chosen Persian notes), which to **remove** (their pitches aren’t in the
+> layout), and which neutral tones to **add** as ties. Removed frets are drawn
+> as red dashed bars with an ✕. Note: pulling frets only ever gives you the
+> equal-tempered notes of the layout — the koron/sori “in-between” tones have to
+> be added as ties, never produced by removal.
+
 > **Fretless or hybrid.** Set *“Number of metal frets already on the banjo”*
 > to `0` for a fully fretless conversion (tie every fret), or to your banjo’s
 > metal-fret count for a **hybrid**: the existing metal frets stay as the exact

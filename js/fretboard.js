@@ -82,18 +82,22 @@ class Fretboard {
       }));
     }
 
-    // --- existing metal frets (hybrid mode): silver reference bars ---
+    // --- existing metal frets (hybrid mode) ---
+    // keep = silver reference bar; remove = red dashed bar with an ✕
     (opts.metalFrets || []).forEach(mf => {
       const y = yNut + mf.distanceFromNut * pxPerMm;
       const hw = widthAt(mf.distanceFromNut) / 2;
+      const remove = mf.status === 'remove';
       this.svg.appendChild(el('line', {
         x1: cx - hw, y1: y, x2: cx + hw, y2: y,
-        stroke: '#c8ccd4', 'stroke-width': 2.5, 'stroke-linecap': 'round', opacity: 0.85,
+        stroke: remove ? '#ef4444' : '#c8ccd4', 'stroke-width': 2.5,
+        'stroke-linecap': 'round', opacity: remove ? 0.9 : 0.85,
+        'stroke-dasharray': remove ? '4 3' : '0',
       }));
       this.svg.appendChild(el('text', {
         x: cx - hw - 10, y: y + 3.5, 'text-anchor': 'end',
-        fill: '#9aa0ac', 'font-size': 9,
-      }, [document.createTextNode('▮' + mf.index)]));
+        fill: remove ? '#ef4444' : '#9aa0ac', 'font-size': 9,
+      }, [document.createTextNode((remove ? '✕' : '▮') + mf.index)]));
     });
 
     // --- frets ---

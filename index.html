@@ -17,6 +17,12 @@
     </div>
   </div>
   <div class="topbar-actions">
+    <label class="unit-pick">Units
+      <select id="unit">
+        <option value="mm">mm</option>
+        <option value="in">inches</option>
+      </select>
+    </label>
     <button id="printBtn" class="btn ghost">🖨 Print shop sheet</button>
     <button id="exportCsv" class="btn ghost">⬇ Export CSV</button>
   </div>
@@ -29,7 +35,7 @@
     <h2>1 · Instrument parameters</h2>
 
     <fieldset>
-      <legend>Geometry (mm)</legend>
+      <legend>Geometry (<span class="unit-label">mm</span>)</legend>
       <label>Scale length (nut → bridge)
         <input id="scaleLength" class="recompute" type="number" value="660" min="300" max="900" step="1">
       </label>
@@ -80,7 +86,7 @@
 
     <fieldset>
       <legend>Fret material — Aquila Nylgut (tenor stock)</legend>
-      <label>Knot allowance per fret (mm)
+      <label>Knot allowance per fret (<span class="unit-label">mm</span>)
         <input id="knotAllowance" class="recompute" type="number" value="45" step="1">
       </label>
       <label>Wrap convention
@@ -134,6 +140,8 @@
 
     <h3>Enabled frets (click to toggle)</h3>
     <div id="noteChips" class="chips"></div>
+
+    <div id="removalPlan" class="removal" style="display:none"></div>
   </section>
 
   <!-- ============ RIGHT: TUNER + TABLE + GUIDE ============ -->
@@ -152,8 +160,8 @@
     <div class="table-scroll">
       <table id="fretTable" class="data">
         <thead><tr>
-          <th>#</th><th>Note</th><th>Type</th><th>From nut<br>(mm)</th><th>Spacing<br>(mm)</th>
-          <th>Neck w×t<br>(mm)</th><th>Wraps</th><th>Cut<br>(mm)</th><th>Gauge<br>(mm)</th>
+          <th>#</th><th>Note</th><th>Type</th><th>From nut<br>(<span class="unit-label">mm</span>)</th><th>Spacing<br>(<span class="unit-label">mm</span>)</th>
+          <th>Neck w×t<br>(<span class="unit-label">mm</span>)</th><th>Wraps</th><th>Cut<br>(<span class="unit-label">mm</span>)</th><th>Gauge<br>(mm)</th>
         </tr></thead>
         <tbody></tbody>
       </table>

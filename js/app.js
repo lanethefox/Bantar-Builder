@@ -13,32 +13,72 @@ const state = {
   fretboard: null,
   tuner: null,
   tonicCents: 0,        // open-string note that acts as modal tonic (cents class)
+  unit: 'mm',           // display/entry unit for all lengths
 };
+
+/* ---------- measurement units ----------
+ * Everything is computed internally in millimetres; units only affect display
+ * and form entry. 1 in = 25.4 mm. */
+const UNITS = {
+  mm: { label: 'mm', perMm: 1,        dp: 1, cutDp: 0 },
+  in: { label: 'in', perMm: 1 / 25.4, dp: 3, cutDp: 2 },
+};
+const LENGTH_FIELDS = ['scaleLength','nutWidth','joinWidth','nutThickness','joinThickness','knotAllowance'];
+function U() { return UNITS[state.unit]; }
+function mmToDisp(mm, dp) { const u = U(); return (mm * u.perMm).toFixed(dp == null ? u.dp : dp); }
+function dispToMm(v) { return v / U().perMm; }
+function uLabel() { return U().label; }
 
 /* ---------- form helpers ---------- */
 function num(id, fallback) {
   const v = parseFloat($('#' + id).value);
   return isFinite(v) ? v : fallback;
 }
+/* a length field's value, converted from the current display unit to mm */
+function lenMm(id, fallbackMm) {
+  const v = parseFloat($('#' + id).value);
+  return isFinite(v) ? dispToMm(v) : fallbackMm;
+}
 
 function readParams() {
   const geom = {
-    nutWidth: num('nutWidth', 30),
-    joinWidth: num('joinWidth', 42),
-    nutThickness: num('nutThickness', 18),
-    joinThickness: num('joinThickness', 24),
+    nutWidth: lenMm('nutWidth', 30),
+    joinWidth: lenMm('joinWidth', 42),
+    nutThickness: lenMm('nutThickness', 18),
+    joinThickness: lenMm('joinThickness', 24),
   };
   return {
-    scaleLength: num('scaleLength', 660),
+    scaleLength: lenMm('scaleLength', 660),
     octaves: parseInt($('#octaves').value, 10) || 2,
     maxFrets: num('maxFrets', 0) || 0,
     existingMetalFrets: parseInt($('#existingMetalFrets').value, 10) || 0,
     enabledNoteIds: state.enabledNoteIds,
     geom,
     wrapMode: $('#wrapMode').value,
-    knotAllowance: num('knotAllowance', NYLGUT_TENOR.knot_allowance_mm),
+    knotAllowance: lenMm('knotAllowance', NYLGUT_TENOR.knot_allowance_mm),
     gauges: NYLGUT_TENOR.gauges_mm,
   };
+}
+
+/* Switch units: convert the numbers currently shown in the length fields so the
+ * physical value is preserved, refresh column labels, then recompute. */
+function changeUnit(newUnit) {
+  if (newUnit === state.unit || !UNITS[newUnit]) return;
+  LENGTH_FIELDS.forEach(id => {
+    const elm = $('#' + id);
+    const cur = parseFloat(elm.value);
+    if (!isFinite(cur)) return;
+    const mm = cur / UNITS[state.unit].perMm;          // old unit -> mm
+    elm.value = (mm * UNITS[newUnit].perMm).toFixed(UNITS[newUnit].dp);
+  });
+  state.unit = newUnit;
+  updateUnitLabels();
+  recompute();
+}
+
+/* Update the unit suffix shown in table headers and field hints. */
+function updateUnitLabels() {
+  $$('.unit-label').forEach(s => s.textContent = uLabel());
 }
 
 /* ---------- tuning / strings ---------- */
@@ -138,11 +178,11 @@ function renderTable(build) {
       <td>${r.index}</td>
       <td><strong>${r.solfege}</strong> · ${r.en}<br><span class="fa">${r.fa}</span></td>
       <td>${typeCell}</td>
-      <td>${r.distanceFromNut.toFixed(2)}</td>
-      <td>${r.spacing.toFixed(2)}</td>
-      <td>${r.neckWidth.toFixed(1)}×${r.neckThickness.toFixed(1)}</td>
+      <td>${mmToDisp(r.distanceFromNut)}</td>
+      <td>${mmToDisp(r.spacing)}</td>
+      <td>${mmToDisp(r.neckWidth)}×${mmToDisp(r.neckThickness)}</td>
       <td>${r.fretType === 'metal' ? '—' : '<strong>' + r.wraps + '</strong>'}</td>
-      <td>${r.fretType === 'metal' ? '—' : r.cutLength.toFixed(0)}</td>
+      <td>${r.fretType === 'metal' ? '—' : mmToDisp(r.cutLength, U().cutDp)}</td>
       <td>${r.gauge ? r.gauge.toFixed(2) : '—'}</td>`;
     tb.appendChild(tr);
   });
@@ -150,8 +190,11 @@ function renderTable(build) {
   const metalNote = tot.metalCount
     ? ` (${tot.metalCount} of these already sit on existing metal frets — no tie needed)`
     : '';
+  const totalDisp = state.unit === 'in'
+    ? `${mmToDisp(tot.mm, 1)} in (${(tot.mm / 25.4 / 12).toFixed(2)} ft)`
+    : `${tot.mm.toFixed(0)} mm (${tot.m.toFixed(2)} m)`;
   $('#nylgutTotal').textContent =
-    `${tot.tieCount} string frets to tie${metalNote} · total Nylgut to cut: ${tot.mm.toFixed(0)} mm (${tot.m.toFixed(2)} m)`;
+    `${tot.tieCount} string frets to tie${metalNote} · total Nylgut to cut: ${totalDisp}`;
 }
 
 /* ---------- assembly guide ---------- */
@@ -168,7 +211,7 @@ function renderAssembly(build, params) {
   if (metalCount > 0) {
     steps.push(`<strong>Hybrid build.</strong> Your banjo keeps its ${metalCount} metal frets — those are already at exact equal-tempered positions and need nothing done to them. You are only adding the <strong>${tieFrets.length} tied Nylgut frets</strong> that fall <em>between</em> the metal ones (the koron/sori neutral tones the metal frets can’t reach). Only the “tie” rows in the chart get cut.`);
     steps.push(`Your metal frets are the reference grid — they are dead-on 12-TET, so you never re-tune them. Tie each new gut fret <em>between</em> its two neighbouring metal frets and tune it by ear/tuner against them. The metal octave fret (#${metalCount >= 12 ? 12 : 'n/a'}) and the metal fifth (#7) are your truth-checks.`);
-    steps.push(`Cut only the “tie” pieces to the lengths in the fret table (the “Cut” column already includes a ${params.knotAllowance} mm allowance for the knot tails). Label each piece with its fret number — they are not interchangeable once the neck tapers.`);
+    steps.push(`Cut only the “tie” pieces to the lengths in the fret table (the “Cut” column already includes a ${mmToDisp(params.knotAllowance, U().cutDp)} ${uLabel()} allowance for the knot tails). Label each piece with its fret number — they are not interchangeable once the neck tapers.`);
     steps.push(`Tie direction: pass the gut around the neck from the treble (white-string) side and finish the knot on the BASS edge, so knots never sit under the melody string. Because a tied fret is taller than a metal fret, set your action with that in mind — the gut fret must clear the metal frets on either side when you fret elsewhere.`);
     steps.push(`Slide-to-tune: each gut fret can move a millimetre or two. Fret the string at the new gut fret, compare to the integrated tuner, and slide toward the nut to lower or toward the bridge to raise. The tuner’s on-neck marker shows where the note currently lands versus where the fret sits, with the silver metal bars drawn for reference.`);
     steps.push(`Wrap count = full turns around the neck before knotting. This app uses ${params.wrapMode === 'auto' ? 'more turns on low frets (taller, firmer) and fewer up high' : params.wrapMode + ' wraps on every tie'}. A taller fret pulls the pressed note slightly sharp — which is exactly why you tune the gut frets AFTER tying, by sliding.`);
@@ -180,12 +223,12 @@ function renderAssembly(build, params) {
     return;
   }
 
-  steps.push(`Cut your Nylgut tie stock to the lengths in the fret table (the “Cut” column already includes a ${params.knotAllowance} mm allowance for the knot tails). Label each piece with its fret number — they are not interchangeable once the neck tapers.`);
+  steps.push(`Cut your Nylgut tie stock to the lengths in the fret table (the “Cut” column already includes a ${mmToDisp(params.knotAllowance, U().cutDp)} ${uLabel()} allowance for the knot tails). Label each piece with its fret number — they are not interchangeable once the neck tapers.`);
   steps.push(`Work the reference frets first, not in number order. Tie and slide these into place and tune them precisely before filling in the rest, because everything else is checked against them:`);
   const refs = [];
-  if (octaveFret) refs.push(`Octave fret #${octaveFret.index} at ${octaveFret.distanceFromNut.toFixed(1)} mm (exactly half the speaking length — it is your truth-check for the whole neck).`);
-  if (fifth)  refs.push(`Fifth (sol) fret #${fifth.index} at ${fifth.distanceFromNut.toFixed(1)} mm.`);
-  if (fourth) refs.push(`Fourth (fa) fret #${fourth.index} at ${fourth.distanceFromNut.toFixed(1)} mm.`);
+  if (octaveFret) refs.push(`Octave fret #${octaveFret.index} at ${mmToDisp(octaveFret.distanceFromNut)} ${uLabel()} (exactly half the speaking length — it is your truth-check for the whole neck).`);
+  if (fifth)  refs.push(`Fifth (sol) fret #${fifth.index} at ${mmToDisp(fifth.distanceFromNut)} ${uLabel()}.`);
+  if (fourth) refs.push(`Fourth (fa) fret #${fourth.index} at ${mmToDisp(fourth.distanceFromNut)} ${uLabel()}.`);
   steps.push({ list: refs.length ? refs : ['(Enable diatonic frets to get reference points.)'] });
 
   steps.push(`Tie direction: pass the gut around the neck from the treble (white-string) side, bring both tails to the BASS side, and finish the knot there. Keeping every knot on the bass edge means the knots never sit under the melody string and your right hand never catches them. The wrap pips in the diagram are drawn on that bass edge for the same reason.`);
@@ -209,6 +252,31 @@ function renderAssembly(build, params) {
       ol.appendChild(li);
     }
   });
+}
+
+/* ---------- fret removal plan (hybrid / setar-spacing on a fretted banjo) ---------- */
+function renderRemovalPlan(params) {
+  const box = $('#removalPlan');
+  const M = params.existingMetalFrets || 0;
+  if (!M) { box.style.display = 'none'; return; }
+  box.style.display = 'block';
+
+  const cls = classifyMetalFrets(params.enabledNoteIds, M, params.scaleLength);
+  const remove = cls.filter(c => c.status === 'remove');
+  const keep = cls.filter(c => c.status === 'keep');
+  const ties = state.build.filter(r => r.fretType === 'tie');
+
+  const fmt = arr => arr.map(c => c.index).join(', ') || '—';
+  box.innerHTML = `
+    <h3>Setar-spacing conversion plan for your ${M} metal frets</h3>
+    <p class="rm-line"><span class="tag remove">remove ${remove.length}</span>
+      metal frets <strong>${fmt(remove)}</strong> — their pitches aren’t in your chosen layout.</p>
+    <p class="rm-line"><span class="tag metal">keep ${keep.length}</span>
+      metal frets <strong>${fmt(keep)}</strong> — these already land on setar notes.</p>
+    <p class="rm-line"><span class="tag tie">add ${ties.length}</span>
+      tied Nylgut frets for the neutral koron/sori tones that no metal fret can reach (see chart).</p>
+    <p class="hint">Removing frets only yields the equal-tempered notes of the layout; the
+      “in-between” Persian tones must be <em>added</em> as ties — pure removal can’t produce them.</p>`;
 }
 
 /* ---------- dastgah info ---------- */
@@ -247,6 +315,7 @@ function recompute() {
   renderTable(build);
   renderAssembly(build, params);
   renderDastgahInfo();
+  renderRemovalPlan(params);
 
   if (!state.fretboard) state.fretboard = new Fretboard($('#fretboardSvg'));
   state.fretboard.render(build, {
@@ -254,7 +323,7 @@ function recompute() {
     degreeSet,
     geom: params.geom,
     strings,
-    metalFrets: metalFretList(params.existingMetalFrets, params.scaleLength),
+    metalFrets: classifyMetalFrets(params.enabledNoteIds, params.existingMetalFrets, params.scaleLength),
   });
 }
 
@@ -375,7 +444,9 @@ function init() {
   $('#dastgah').addEventListener('change', recompute);
   $('#exportCsv').addEventListener('click', exportCSV);
   $('#printBtn').addEventListener('click', () => window.print());
+  $('#unit').addEventListener('change', e => changeUnit(e.target.value));
 
+  updateUnitLabels();
   recompute();
 }
 

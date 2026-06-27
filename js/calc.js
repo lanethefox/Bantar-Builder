@@ -142,6 +142,31 @@ function coincidesWithMetal(cents, metalCount, tol) {
   return nearest > 0 && nearest <= 100 * metalCount && Math.abs(cents - nearest) <= t;
 }
 
+/* Removal plan: for each existing metal fret, decide whether its pitch is part
+ * of the chosen Persian note set ('keep') or should be pulled to replicate
+ * setar spacing ('remove'). Neutral koron/sori tones never sit at 12-TET
+ * positions, so they can only be ADDED as ties — never produced by removal. */
+function classifyMetalFrets(enabledNoteIds, metalCount, scaleLength) {
+  const pcOf = c => (((c % 1200) + 1200) % 1200);
+  const enabled = NOTES.filter(n => enabledNoteIds.includes(n.id));
+  const enabledPC = new Map();          // pitch-class -> note (for labels)
+  enabled.forEach(n => enabledPC.set(pcOf(n.cents), n));
+  // the open string / tonic (do, pitch-class 0) recurs at every octave fret and
+  // is always a scale tone — keep those metal frets.
+  if (!enabledPC.has(0)) enabledPC.set(0, NOTE_BY_ID['do']);
+  return metalFretList(metalCount, scaleLength).map(mf => {
+    const pc = pcOf(mf.cents);
+    const note = enabledPC.get(pc) || null;
+    return {
+      ...mf,
+      pc,
+      status: note ? 'keep' : 'remove',
+      noteSolfege: note ? note.solfege : null,
+      noteEn: note ? note.en : null,
+    };
+  });
+}
+
 /* Full build: combine fret geometry + tie lengths + wraps into one table.
  * In hybrid mode (existingMetalFrets > 0), any Persian pitch that already
  * lands on a metal fret is flagged 'metal' (no tie needed); the rest are

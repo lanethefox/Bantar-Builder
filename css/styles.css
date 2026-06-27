@@ -90,7 +90,17 @@ table{border-collapse:collapse;width:100%}
 .tag{font-size:.68rem;padding:1px 6px;border-radius:10px;white-space:nowrap}
 .tag.tie{background:rgba(42,157,143,.22);color:#5fd0c2;border:1px solid var(--teal)}
 .tag.metal{background:rgba(200,204,212,.16);color:#c8ccd4;border:1px solid #c8ccd4}
+.tag.remove{background:rgba(239,68,68,.18);color:#f87171;border:1px solid #ef4444}
 .data tr.is-metal td{opacity:.72}
+
+/* units picker in topbar */
+.unit-pick{display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--muted);margin:0}
+.unit-pick select{width:auto;margin:0;padding:6px 8px}
+
+/* removal plan box */
+.removal{margin-top:14px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px}
+.removal h3{margin-top:0;color:var(--gold)}
+.rm-line{margin:.5em 0;font-size:.85rem}
 
 /* tuner */
 .tuner{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:8px}
